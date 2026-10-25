@@ -37,6 +37,39 @@ interface Config {
   announcement?: string;
 }
 
+// One image serves several NetBird instances: the container writes a
+// config.json per hostname and nginx answers /config.json with the one that
+// matches the URL. The browser reads it at runtime instead of from the bundle.
+export const RUNTIME_CONFIG_PATH = "/config.json";
+let runtimeConfigJson: any;
+
+/**
+ * Read the config for the current hostname from /config.json, once per page.
+ * Returns null when it can't be loaded, e.g. when out/ is served without the
+ * container.
+ */
+export const readRuntimeConfig = () => {
+  if (runtimeConfigJson !== undefined) return runtimeConfigJson;
+  runtimeConfigJson = null;
+  try {
+    // Synchronous on purpose: modules read the config while they load, before
+    // React renders, so it has to be there on the first call.
+    const request = new XMLHttpRequest();
+    request.open("GET", RUNTIME_CONFIG_PATH, false);
+    request.send();
+    if (request.status === 200) {
+      runtimeConfigJson = JSON.parse(request.responseText);
+    }
+  } catch (e) {
+    console.error("Failed to load " + RUNTIME_CONFIG_PATH, e);
+  }
+  return runtimeConfigJson;
+};
+
+export const resetRuntimeConfig = () => {
+  runtimeConfigJson = undefined;
+};
+
 /**
  * Load the config from the config.json file
  */
@@ -51,7 +84,11 @@ const loadConfig = (): Config => {
   } else if (process.env.NODE_ENV === "development") {
     configJson = require("@/config/local");
   } else if (process.env.NODE_ENV === "production") {
-    configJson = require("@/config/production");
+    // The bundled config.json only holds placeholders; it is used while
+    // pre-rendering at build time, where there is no hostname yet.
+    configJson =
+      (typeof window !== "undefined" && readRuntimeConfig()) ||
+      require("@/config/production");
   }
 
   configJson = configJson ?? {};

@@ -27,6 +27,8 @@ WORKDIR /usr/share/nginx/html
 COPY LICENSE /licenses/AGPL-3.0.txt
 COPY licenses/ /licenses/
 COPY docker/default.conf /etc/nginx/http.d/default.conf
+COPY docker/netbird-instances.conf /etc/nginx/http.d/00-netbird-instances.conf
+COPY config.json /usr/share/netbird-dashboard/config.json.tmpl
 COPY docker/nginx.conf /etc/nginx/netbird.conf
 COPY docker/rootless.conf /etc/nginx/http.d/rootless.conf
 COPY docker/init_react_envs.sh /usr/local/init_react_envs.sh
@@ -38,9 +40,10 @@ RUN sed -i \
       /etc/nginx/http.d/default.conf && \
     sed -i '/^user nginx;$/d' /etc/nginx/netbird.conf && \
     chmod +x /usr/local/init_react_envs.sh && \
+    mkdir -p /var/lib/netbird-dashboard /etc/netbird-dashboard/instances && \
     chmod -R a+rX /licenses && \
-    chgrp -R 0 /etc/nginx/http.d /usr/share/nginx/html /tmp/nginx && \
-    chmod -R g=u /etc/nginx/http.d /usr/share/nginx/html /tmp/nginx
+    chgrp -R 0 /etc/nginx/http.d /usr/share/nginx/html /tmp/nginx /var/lib/netbird-dashboard && \
+    chmod -R g=u /etc/nginx/http.d /usr/share/nginx/html /tmp/nginx /var/lib/netbird-dashboard
 
 USER 10001:0
 ENTRYPOINT ["/usr/local/init_react_envs.sh"]
