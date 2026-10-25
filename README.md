@@ -31,12 +31,20 @@ Changes from upstream:
   netbirdio's registries or need netbirdio's secrets (`build_and_push.yml`,
   `e2e-test.yml`) are disabled in this repository's Actions settings.
 
-To pull in new upstream changes:
+- **Automatic upstream sync.** [sync-upstream.yml](.github/workflows/sync-upstream.yml)
+  merges `netbirdio/dashboard` into `main` every day at 03:17 UTC (or on
+  demand from the Actions tab). Each new upstream release `vX.Y.Z` is merged
+  on its own and tagged with the same name, so the image
+  `ghcr.io/tim-riep/netbird-multi-instance-dashboard:vX.Y.Z` is exactly that
+  release plus this fork's changes. It needs the secret `SYNC_TOKEN`, a
+  fine-grained personal access token for this repository with *Contents*
+  and *Workflows* read and write. When a merge conflicts, the run fails
+  without pushing anything; merge by hand:
 
-```shell
-git fetch upstream
-git merge upstream/main
-```
+  ```shell
+  git fetch upstream
+  git merge upstream/main
+  ```
 
 ## Reporting bugs and requesting features
 
