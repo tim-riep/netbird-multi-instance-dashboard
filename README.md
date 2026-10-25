@@ -23,6 +23,13 @@ Changes from upstream:
   hostname only. Setup: [docker/README.md](docker/README.md#several-instances-one-per-hostname).
 - **Next.js 16.4.3** instead of 16.4.0, for the security fixes in
   GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr and GHSA-p3m5-59mp-jv5r.
+- **Own container image.** [fork-image.yml](.github/workflows/fork-image.yml)
+  builds the image on every push to `main` and every `v*` tag and pushes it
+  to `ghcr.io/tim-riep/netbird-multi-instance-dashboard` (`latest`, `main`,
+  the tag and `sha-<commit>`, each also with a `-rootless` suffix), for
+  `linux/amd64` and `linux/arm64`. The upstream workflows that push to
+  netbirdio's registries or need netbirdio's secrets (`build_and_push.yml`,
+  `e2e-test.yml`) are disabled in this repository's Actions settings.
 
 To pull in new upstream changes:
 

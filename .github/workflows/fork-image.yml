@@ -1,0 +1,144 @@
+name: fork image
+# Builds this fork's dashboard image and pushes it to the GitHub Container
+# registry of this repository (ghcr.io/<owner>/<repo>). The upstream
+# build_and_push.yml pushes to netbirdio's registries and is disabled here.
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+concurrency:
+  group: fork-image-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build_n_push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: setup-node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - run: echo '{}' > .local-config.json
+
+      - name: Download IronRDP release TS files
+        uses: robinraju/release-downloader@v1.13
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: netbirdio/IronRDP
+          tag: v0.0.2
+          fileName: "*.ts"
+          out-file-path: 'public/ironrdp-pkg'
+
+      - name: Download IronRDP release JS files
+        uses: robinraju/release-downloader@v1.13
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: netbirdio/IronRDP
+          tag: v0.0.2
+          fileName: "*.js"
+          out-file-path: 'public/ironrdp-pkg'
+
+      - name: Download IronRDP release WASM file
+        uses: robinraju/release-downloader@v1.13
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: netbirdio/IronRDP
+          tag: v0.0.2
+          fileName: "ironrdp_web_bg.wasm"
+          out-file-path: 'public/ironrdp-pkg'
+
+      - name: Get version from tag
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=development" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_DASHBOARD_VERSION: ${{ steps.version.outputs.version }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+          flavor: |
+            latest=false
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha
+
+      - name: Docker meta (rootless)
+        id: meta_rootless
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+          flavor: |
+            latest=false
+            suffix=-rootless,onlatest=true
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha
+
+      - name: Log in to the GitHub Container registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Build and push rootless Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile.rootless
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta_rootless.outputs.tags }}
+          labels: ${{ steps.meta_rootless.outputs.labels }}
+
+      - run: |
+          echo '### Pushed tags' >> $GITHUB_STEP_SUMMARY
+          echo '${{ steps.meta.outputs.tags }}' >> $GITHUB_STEP_SUMMARY
+          echo '${{ steps.meta_rootless.outputs.tags }}' >> $GITHUB_STEP_SUMMARY
