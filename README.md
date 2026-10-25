@@ -6,6 +6,31 @@ This project is the UI for NetBird's Management service.
 
 See [NetBird repo](https://github.com/netbirdio/netbird)
 
+## About this fork
+
+This is a fork of [netbirdio/dashboard](https://github.com/netbirdio/dashboard)
+that serves several NetBird instances from one dashboard container. The
+changes stay in this fork and are not proposed upstream.
+
+Changes from upstream:
+
+- **One config per hostname.** The settings (management API, identity
+  provider, client ID, ...) depend on the URL. Each instance is a
+  `<hostname>.env` file mounted at `/etc/netbird-dashboard/instances`; the
+  container environment stays the default for all other hostnames. The
+  browser loads its settings from `/config.json` at runtime, and nginx
+  serves that file and the Content-Security-Policy header for the requested
+  hostname only. Setup: [docker/README.md](docker/README.md#several-instances-one-per-hostname).
+- **Next.js 16.4.3** instead of 16.4.0, for the security fixes in
+  GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr and GHSA-p3m5-59mp-jv5r.
+
+To pull in new upstream changes:
+
+```shell
+git fetch upstream
+git merge upstream/main
+```
+
 ## Reporting bugs and requesting features
 
 NetBird uses a discussion-first workflow across all its repositories. Bug reports and
